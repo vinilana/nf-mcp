@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "entry": "dist/mcp-http.js",
+  "env": {
+    "required": [
+      "MCP_BEARER_TOKEN",
+      "SPEDY_API_KEY",
+      "SPEDY_BASE_URL"
+    ],
+    "optional": [
+      "INVOKTA_HTTP_ALLOWED_HOSTS",
+      "INVOKTA_HTTP_ALLOWED_ORIGINS",
+      "INVOKTA_HTTP_HOST",
+      "INVOKTA_HTTP_MAX_BODY_BYTES",
+      "INVOKTA_HTTP_PORT",
+      "PORT"
+    ]
+  },
+  "image": {
+    "baseImage": "node:22-slim",
+    "port": 3000
+  },
+  "healthcheck": {
+    "expect": "alive"
+  }
+}
