@@ -14,9 +14,9 @@ export function createOpenApiEngine({ ports }: CreateOpenApiEngineOptions) {
     name: "spedy-nfse-mcp",
     version: "0.1.0",
     capabilities: {
-      "openapi.listar-nfse": listarNfse(ports.listarNfse),
-      "openapi.consultar-nfse": consultarNfse(ports.consultarNfse),
-      "openapi.emitir-nfse": emitirNfse(ports.emitirNfse),
+      "nota-fiscal.listar-nfse": listarNfse(ports.listarNfse),
+      "nota-fiscal.consultar": consultarNfse(ports.consultarNfse),
+      "nota-fiscal.emitir": emitirNfse(ports.emitirNfse),
     },
   });
 }

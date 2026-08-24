@@ -10,19 +10,19 @@ import type {
 
 const contractCases = [
   {
-    "capabilityId": "openapi.listar-nfse",
+    "capabilityId": "nota-fiscal.listar-nfse",
     "portName": "listarNfse",
     "selector": "GET:/v1/service-invoices",
     "input": {}
   },
   {
-    "capabilityId": "openapi.consultar-nfse",
+    "capabilityId": "nota-fiscal.consultar",
     "portName": "consultarNfse",
     "selector": "GET:/v1/service-invoices/{id}",
     "input": { "path": { "id": "9f623360-bba7-4dd9-b508-15c070d550cc" } }
   },
   {
-    "capabilityId": "openapi.emitir-nfse",
+    "capabilityId": "nota-fiscal.emitir",
     "portName": "emitirNfse",
     "selector": "POST:/v1/service-invoices",
     "input": {
@@ -35,7 +35,7 @@ const contractCases = [
 ] as const;
 const successCases = [
   {
-    "capabilityId": "openapi.listar-nfse",
+    "capabilityId": "nota-fiscal.listar-nfse",
     "portName": "listarNfse",
     "selector": "GET:/v1/service-invoices",
     "input": {},
@@ -46,7 +46,7 @@ const successCases = [
     }
   },
   {
-    "capabilityId": "openapi.emitir-nfse",
+    "capabilityId": "nota-fiscal.emitir",
     "portName": "emitirNfse",
     "selector": "POST:/v1/service-invoices",
     "input": {
@@ -175,7 +175,7 @@ describe("generated OpenAPI engine", () => {
     };
 
     await engine.invoke(
-      "openapi.emitir-nfse",
+      "nota-fiscal.emitir",
       { body },
       { principal: { id: "test-client" } },
     );
@@ -200,7 +200,7 @@ describe("generated OpenAPI engine", () => {
 
     await expect(
       engine.invoke(
-        "openapi.emitir-nfse",
+        "nota-fiscal.emitir",
         {} as never,
         { principal: { id: "test-client" } },
       ),
@@ -209,8 +209,13 @@ describe("generated OpenAPI engine", () => {
   });
 });
 
-describe("MCP HTTP authentication", () => {
-  const token = "mock-mcp-bearer-token-at-least-32-characters";
+import { SignJWT } from "jose";
+
+describe("MCP HTTP authentication with Better Auth OAuth", () => {
+  const secret = "mock-better-auth-secret-key-at-least-32-chars-123456";
+  const secretKey = new TextEncoder().encode(secret);
+  const authServerUrl = "http://127.0.0.1:4000";
+  const resourceUrl = "http://127.0.0.1:3400/mcp";
 
   function request(authorization: string | null) {
     return {
@@ -223,20 +228,127 @@ describe("MCP HTTP authentication", () => {
     };
   }
 
-  it("authenticates an exact bearer token", () => {
-    const auth = createHttpAuth(token);
+  async function issueToken(
+    claims: Record<string, unknown>,
+    options: { expired?: boolean; secretOverride?: Uint8Array } = {},
+  ) {
+    const signer = new SignJWT(claims)
+      .setProtectedHeader({ alg: "HS256" })
+      .setIssuer(authServerUrl)
+      .setAudience(resourceUrl);
 
-    expect(auth.authenticate(request(`Bearer ${token}`))).toEqual({
-      id: "mcp-client",
+    if (options.expired) {
+      signer
+        .setIssuedAt(Math.floor(Date.now() / 1000) - 7200)
+        .setExpirationTime(Math.floor(Date.now() / 1000) - 3600);
+    } else {
+      signer.setIssuedAt().setExpirationTime("2h");
+    }
+
+    return signer.sign(options.secretOverride ?? secretKey);
+  }
+
+  it("authenticates a valid Better Auth JWT and extracts principal and attributes", async () => {
+    const auth = createHttpAuth({
+      authServerUrl,
+      resourceUrl,
+      secret,
+    });
+
+    const token = await issueToken({
+      sub: "user-456",
+      email: "financeiro@empresa.com.br",
+      name: "Financeiro Spedy",
+      scope: "nota-fiscal",
+      role: "admin",
+    });
+
+    const principal = await auth.authenticate(request(`Bearer ${token}`));
+    expect(principal).toEqual({
+      id: "user-456",
+      attributes: {
+        email: "financeiro@empresa.com.br",
+        name: "Financeiro Spedy",
+        scope: "nota-fiscal",
+        role: "admin",
+      },
     });
   });
 
-  it.each([null, "Basic abc", "Bearer wrong", `bearer ${token}`])(
-    "rejects an invalid authorization header",
-    (authorization) => {
-      const auth = createHttpAuth(token);
+  it("advertises protected resource metadata and challenge scopes", () => {
+    const auth = createHttpAuth({
+      authServerUrl,
+      resourceUrl,
+      secret,
+      supportedScopes: ["nota-fiscal"],
+    });
 
-      expect(auth.authenticate(request(authorization))).toBeNull();
-    },
-  );
+    expect(auth.resourceMetadata).toEqual({
+      resource: resourceUrl,
+      authorizationServers: [authServerUrl],
+      scopesSupported: ["nota-fiscal"],
+    });
+    expect(auth.challengeScopes).toEqual(["nota-fiscal"]);
+  });
+
+  it("rejects an expired JWT", async () => {
+    const auth = createHttpAuth({
+      authServerUrl,
+      resourceUrl,
+      secret,
+    });
+
+    const expiredToken = await issueToken({ sub: "user-456" }, { expired: true });
+    const principal = await auth.authenticate(request(`Bearer ${expiredToken}`));
+    expect(principal).toBeNull();
+  });
+
+  it("rejects a JWT with invalid signature", async () => {
+    const auth = createHttpAuth({
+      authServerUrl,
+      resourceUrl,
+      secret,
+    });
+
+    const wrongKey = new TextEncoder().encode("different-secret-key-32-chars-long-123");
+    const invalidToken = await issueToken(
+      { sub: "user-456" },
+      { secretOverride: wrongKey },
+    );
+    const principal = await auth.authenticate(request(`Bearer ${invalidToken}`));
+    expect(principal).toBeNull();
+  });
+
+  it.each([
+    null,
+    "Basic abc",
+    "Bearer",
+    "Bearer ",
+    "Bearer invalid.jwt.format",
+  ])("rejects invalid authorization header %s", async (authorization) => {
+    const auth = createHttpAuth({
+      authServerUrl,
+      resourceUrl,
+      secret,
+    });
+
+    const principal = await auth.authenticate(request(authorization));
+    expect(principal).toBeNull();
+  });
+
+  it("validates required configuration at startup", () => {
+    expect(() =>
+      createHttpAuth({
+        authServerUrl: "",
+        resourceUrl,
+      }),
+    ).toThrow("BETTER_AUTH_URL is required.");
+
+    expect(() =>
+      createHttpAuth({
+        authServerUrl,
+        resourceUrl: "",
+      }),
+    ).toThrow("MCP_RESOURCE_URL is required.");
+  });
 });

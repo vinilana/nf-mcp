@@ -13,7 +13,7 @@ try {
   const input = parseInput(process.argv[2] ?? "{}");
   const { engine } = await import("./engine.js");
   const result = await engine.invoke(
-    "openapi.listar-nfse",
+    "nota-fiscal.listar-nfse",
     input,
     { source: "direct", principal: { id: "direct:local" } },
   );

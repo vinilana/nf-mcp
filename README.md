@@ -5,9 +5,9 @@ through an authenticated MCP Streamable HTTP endpoint.
 
 The engine contains three capabilities:
 
-- `openapi.emitir-nfse`: creates and enqueues an NFS-e for asynchronous issue.
-- `openapi.consultar-nfse`: reads the current status of one NFS-e.
-- `openapi.listar-nfse`: lists NFS-e records with Spedy filters and pagination.
+- `nota-fiscal.emitir`: creates and enqueues an NFS-e for asynchronous issue.
+- `nota-fiscal.consultar`: reads the current status of one NFS-e.
+- `nota-fiscal.listar-nfse`: lists NFS-e records with Spedy filters and pagination.
 
 All capabilities require an authenticated principal. Spedy credentials remain
 server-side and are never accepted as MCP tool input.
@@ -21,10 +21,10 @@ npm run mcp:http
 ```
 
 The included local configuration serves MCP at `http://127.0.0.1:3400/mcp`. Clients
-must send `Authorization: Bearer <MCP_BEARER_TOKEN>`.
+authenticate via Better Auth OAuth 2.1 and send `Authorization: Bearer <token>`.
 
 The committed `.env.example` and the ignored local `.env` contain mock values.
-Replace `MCP_BEARER_TOKEN` and `SPEDY_API_KEY` before making real requests. The
+Configure `BETTER_AUTH_URL` and `SPEDY_API_KEY` before making real requests. The
 default connector target is Spedy's sandbox; production is never selected
 implicitly.
 
@@ -32,8 +32,11 @@ implicitly.
 
 | Variable | Purpose |
 | --- | --- |
-| `MCP_BEARER_TOKEN` | Protects the MCP HTTP endpoint; minimum 32 characters. |
-| `SPEDY_API_KEY` | Sent by the connector as the server-side `X-Api-Key`. |
+| `BETTER_AUTH_URL` | Base URL of the Better Auth OAuth 2.1 authorization server (e.g. `http://127.0.0.1:4000`). |
+| `BETTER_AUTH_SECRET` | (Optional) Shared secret for symmetric JWT verification. |
+| `BETTER_AUTH_JWKS_URL` | (Optional) Custom JWKS endpoint for asymmetric token verification (defaults to `${BETTER_AUTH_URL}/api/auth/jwks`). |
+| `MCP_RESOURCE_URL` | (Optional) Public MCP resource URL (defaults to `http://${host}:${port}/mcp`). |
+| `SPEDY_API_KEY` | Server-side credential sent by the connector as `X-Api-Key`. Never exposed to MCP clients. |
 | `SPEDY_BASE_URL` | Spedy API origin, normally `https://sandbox-api.spedy.com.br`. Do not append `/v1`. |
 | `INVOKTA_HTTP_HOST` | Bind host; defaults to `127.0.0.1`. |
 | `INVOKTA_HTTP_PORT` | Bind port; the local example uses `3400` and the adapter defaults to `3000` when unset. |

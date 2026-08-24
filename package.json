@@ -22,6 +22,8 @@
   "dependencies": {
     "@invokta/core": "0.7.0",
     "@invokta/mcp": "0.7.0",
+    "better-auth": "^1.7.1",
+    "jose": "^6.2.10",
     "zod": "4.4.3"
   },
   "devDependencies": {

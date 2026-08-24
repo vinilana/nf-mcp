@@ -35,7 +35,7 @@ platform; the toolkit never stores, reads, or generates a value.
 
 | Variable |
 | --- |
-| `MCP_BEARER_TOKEN` |
+| `BETTER_AUTH_URL` |
 | `SPEDY_API_KEY` |
 | `SPEDY_BASE_URL` |
 
@@ -43,11 +43,14 @@ platform; the toolkit never stores, reads, or generates a value.
 
 | Variable |
 | --- |
+| `BETTER_AUTH_JWKS_URL` |
+| `BETTER_AUTH_SECRET` |
 | `INVOKTA_HTTP_ALLOWED_HOSTS` |
 | `INVOKTA_HTTP_ALLOWED_ORIGINS` |
 | `INVOKTA_HTTP_HOST` |
 | `INVOKTA_HTTP_MAX_BODY_BYTES` |
 | `INVOKTA_HTTP_PORT` |
+| `MCP_RESOURCE_URL` |
 | `PORT` |
 
 ## Health check

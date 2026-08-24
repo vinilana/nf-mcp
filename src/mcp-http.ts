@@ -30,7 +30,7 @@ import {
 import { reportConnectorConfigurationFailure } from "./openapi/startup.js";
 
 const requiredEnvironmentNames = [
-  "MCP_BEARER_TOKEN",
+  "BETTER_AUTH_URL",
   "SPEDY_API_KEY",
   "SPEDY_BASE_URL",
 ] as const;
@@ -112,10 +112,16 @@ async function main(): Promise<void> {
   // src/engine.ts.
   const { createHttpAuth } = await import("./http-auth.js");
   const { engine } = await import("./engine.js");
-  const bearerToken = readValue("MCP_BEARER_TOKEN");
-  if (bearerToken === undefined) {
-    throw new EngineStartupError("MCP_BEARER_TOKEN is required.");
+
+  const betterAuthUrl = readValue("BETTER_AUTH_URL");
+  if (betterAuthUrl === undefined) {
+    throw new EngineStartupError("BETTER_AUTH_URL is required.");
   }
+
+  const resourceUrl =
+    readValue("MCP_RESOURCE_URL") ?? `http://${host}:${port}/mcp`;
+  const betterAuthSecret = readValue("BETTER_AUTH_SECRET");
+  const betterAuthJwksUrl = readValue("BETTER_AUTH_JWKS_URL");
 
   const server = await serveMcpHttp(engine, {
     host,
@@ -123,7 +129,12 @@ async function main(): Promise<void> {
     ...(allowedHosts === undefined ? {} : { allowedHosts }),
     ...(allowedOrigins === undefined ? {} : { allowedOrigins }),
     ...(maxRequestBodyBytes === undefined ? {} : { maxRequestBodyBytes }),
-    auth: createHttpAuth(bearerToken),
+    auth: createHttpAuth({
+      authServerUrl: betterAuthUrl,
+      resourceUrl,
+      ...(betterAuthSecret === undefined ? {} : { secret: betterAuthSecret }),
+      ...(betterAuthJwksUrl === undefined ? {} : { jwksUri: betterAuthJwksUrl }),
+    }),
   });
 
   let closing = false;
